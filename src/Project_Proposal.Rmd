@@ -1,0 +1,146 @@
+---
+title: "STAT429_Project_Proposal"
+output:
+  pdf_document: default
+  html_document: default
+linkcolor: blue
+date: "2025-03-26"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(out.width="70%", fig.align='center')
+```
+
+# Team Members
+
+Jaehyung Kim – GR, netid: jk38\
+Karina Grewal – GR, netid: kgrewal2\
+Steve Liang - GR, netid: stevel3
+
+# Data Description
+
+The data signifies power consumption in Tetouan, Morocco, recorded from January 1st, 2017 to December 30th, 2017. This is collected from [Amendis](https://www.amendis.ma/fr), the electricity distributor in that region, and we have obtained this dataset from [Kaggle](https://www.kaggle.com/datasets/fedesoriano/electric-power-consumption/data). In terms of the regressor variables, there are five features, which are “temperature”, “humidity”, “wind speed”, “General Diffuse Flows”, “Diffuse Flows”, and three response variables “Zone 1 Power Consumption”, “Zone 2 Power Consumption”, and “Zone 3 Power Consumption” measurements.
+
+To analyze the effects of the weather factors on power consumption, we decided to remove “General Diffuse Flows” as that variable counts for radiation that bounces off of nearby surfaces.
+
+Feature Variables:
+
+-   Temperature: Measured in Celsius (°C)\
+-   Humidity: Weather humidity\
+-   Wind Speed: Wind speed\
+-   Diffuse Flows: Represents amount of diffused solar radiation
+
+Response Variables:
+
+-   Zone 1 Power Consumption: Power Consumption in Quads zone (kV)\
+-   Zone 2 Power Consumption: Power Consumption in Smir zone (kV)\
+-   Zone 3 Power Consumption: Power Consumption in Boussafou zone (kV)
+
+These feature variables were measured in 10-minute intervals throughout the day. Lastly, we aggregated zones 1, 2, and 3 to analyze the comprehensive power consumption in Tetouan. This integrated variable will be used as the outcome to demonstrate the various effects of the regressor variables.
+
+# Preliminary Data Analysis and Visualization
+
+```{r, include=FALSE}
+library(tidyverse)
+library(astsa)
+library(ggplot2)
+library(ggcorrplot)
+```
+
+```{r, include=FALSE}
+powerconsumption <- read_csv("powerconsumption.csv", 
+    col_types = cols(Datetime = col_datetime(format = "%m/%d/%Y %H:%M")))
+powerconsumption <- powerconsumption %>% 
+  select(-c(GeneralDiffuseFlows)) %>%
+  mutate(total_consumption = PowerConsumption_Zone1 + PowerConsumption_Zone2 + PowerConsumption_Zone3)
+head(powerconsumption, 6)
+```
+
+```{r}
+avg_daily <- powerconsumption %>%
+  mutate(date = as.Date(Datetime)) %>%
+  group_by(date) %>%
+  summarize(avg_daily_consumption = mean(total_consumption))
+
+ggplot(data=avg_daily, aes(x=date, y=avg_daily_consumption, group=1)) +
+  geom_line(color="darkgreen") + 
+  labs(title = "Avg Daily Power Consumption", x = "Date", y = "Power Consumption", caption = "Fig. 1") +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+The average daily power consumption is characterized by an overall trend that peaks in the summer months and potentially a weekly seasonal trend. The data is not stationary and the variance seems to be constant disregarding the overall trend.
+
+```{r}
+corr_matrix <- powerconsumption %>%
+  select(Temperature, Humidity, WindSpeed, DiffuseFlows, total_consumption)
+ggcorrplot(cor(corr_matrix), type="lower") +
+  labs(title = "Correlation Heatmap", caption = "Fig. 2")
+```
+
+The Temperature variable seems to be moderately correlated to Humidity, WindSpeed, and total_consumption
+
+```{r}
+hourly<- powerconsumption %>%
+  mutate(hour = hour(Datetime))
+
+ggplot(data = hourly, aes(x=hour, y=total_consumption, group=hour)) +
+  geom_boxplot() +
+  labs(title = "Hourly Power Consumption", x = "Hour", y = "Power Consumption", caption = "Fig. 3") + 
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+There is potentially a seasonal trend across the hours of the day. Lowest consumption is around 6am and increases until about 8pm where it begins to decrease again. 
+
+# Analysis Plan
+
+In this project, our goal is to forecast the total power consumption in Tetouan, Morocco (across all three zones), using time series models while also exploring how extreme weather events and seasonal/daily patterns influence consumption trends. Our response variable will be “total consumption”, and we’ll use “temperature”, “humidity”, “wind speed”, and “diffuse flows” as our regressor variables.
+
+Below are the key questions we aim to answer:
+
+### 1. How accurately can we forecast the power consumption for the next 50 minutes using time series models, and which model performs the best?
+
+To evaluate forecasting accuracy, we will implement a series of linear regression models and compare their performance using the Root Mean Squared Error (RMSE) metric. We plan to do some variable selection using AIC/BIC and introduce some dummy/lag variables to create the most optimal forecasting model. Some examples of models we plan to implement:
+
+-   Using **time, temperature, humidity, wind speed, and a quarterly dummy variable**. Where time is measured at 10-minute intervals\
+-   Using **time, temperature, humidity, wind speed, diffuse flows, and a quarterly dummy variable.** Where time is measured at 10-minute intervals
+
+### 2. Which weather event (humidity, temperature, diffuse flows, wind speed) has the greatest influence on power consumption?
+
+We are also interested in understanding which extreme weather conditions influence the consumption patterns the most. To explore this, we will:
+
+-   Analyze the cross-correlation between the variables
+-   Evaluate the absolute weight of the variables (if significant)
+-   Examine the lagged variables on the weather events to understand whether past weather events affect present power consumption
+
+### 3. Are there any seasonal or daily cycles in the power consumption?
+
+Since we are more likely to consume energy in relation to the time of day or week, we want to analyze the daily/weekly/seasonal patterns in the power consumption. For this we will try to use spectral analysis to find any underlying cyclical patterns. However, spectral analysis usually requires that the time series data is stationary. As we can see in Figure 1, there is a clear upward trend during the summer months. We will use the differencing detrending method to make our data stationary in order to conduct our spectral analysis methods. Some methods we can try are:
+
+       
+* **Fast Fourier Transform:**  
+
+  - Converts the time series into the frequency domain to identify dominant cycles in power consumption
+  - Helps to determine if there are daily, weekly or seasonal trends  
+
+* **Periodogram**   
+
+  - Visualization of how power consumption varies with frequency. This method involves viewing the time series as a sum of cousin waves with varying amplitudes and frequencies.
+  - Peaks in the periodogram indicate strong periodic components  
+
+* **Wavelet Transform (optional additional analysis)**  
+
+  - Similar to Fourier transform, but captures both frequency and time variations 
+  - Useful for analyzing time-varying energy consumption trends  
+
+
+By addressing these questions, we hope to gain deeper insights into power consumption forecasting, extreme weather effects, and seasonal patterns in Morocco's energy consumption.  
+
+**References**  
+
+BasicSpectralAnalysisExample. (n.d.). Retrieved March 27, 2025, from https://www.mathworks.com/help/matlab/math/basic-spectral-analysis.html  
+
+6.1 The periodogram. (n.d.). PennState: Statistics Online Courses. Retrieved March 27, 2025, from https://online.stat.psu.edu/stat510/lesson/6/6.1  
+
+Wavelet Transforms - An overview. (n.d.). ScienceDirect Topics. Retrieved March 27, 2025, from https://www.sciencedirect.com/topics/computer-science/wavelet-transforms
+
