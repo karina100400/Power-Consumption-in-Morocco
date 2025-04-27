@@ -146,6 +146,7 @@ Wavelet Transforms - An overview. (n.d.). ScienceDirect Topics. Retrieved March 
 
 # Analysis
 
+## Regression Model
 ```{r}
 #powerconsumption is our main dataframe
 power_ts <- as.ts(powerconsumption$total_consumption)
@@ -156,6 +157,37 @@ diff_power_ts <- diff(power_ts)
 tsplot(power_ts)
 tsplot(diff_power_ts)
 ```
+
+```{r}
+time_consumption <- time(powerconsumption$total_consumption)
+
+power.lm <- lm(total_consumption ~ time_consumption + Temperature + Humidity + WindSpeed + DiffuseFlows, data=powerconsumption)
+summary(power.lm)
+
+power.lm2 <- lm(total_consumption ~ time_consumption + time_consumption2 + Temperature + Humidity + WindSpeed + DiffuseFlows, data=powerconsumption)
+summary(power.lm2)
+
+power.lm3 <- lm(total_consumption ~ poly(time_consumption, 11, raw=TRUE) + Temperature + Humidity + WindSpeed + DiffuseFlows, data=powerconsumption)
+summary(power.lm3)
+
+
+```
+
+```{r}
+hourly.lm <- lm(total_consumption ~ poly(time_consumption, 11, raw=TRUE) + Temperature + Humidity + WindSpeed + DiffuseFlows + factor(hour), data=hourly)
+summary(hourly.lm)
+par(mfrow=c(2,2))
+plot(hourly.lm)
+Box.test(resid(hourly.lm), lag = 10, type = "Ljung-Box")
+```
+Even in our best efforts to model the dataset using a linear model, our residuals are highly correlated based on the Ljung-Box test. Therefore, we will fit a dynamic SARIMA model with regressors. 
+
+
+
+
+## SARIMA Model (Don't include time or hourly factor in xreg)
+
+
 ```{r}
 diff_acf <- acf(diff_power_ts, lag.max = 500)
 diff_pacf <- pacf(diff_power_ts, lag.max = 500)
@@ -194,7 +226,6 @@ r2=resid(hourly.lm2)
 acf2(diff(r2,144),500)
 acf2(diff(r2),500)
 acf2(diff(diff(r2,144)),500)
-sarima()
 ```
 
 
