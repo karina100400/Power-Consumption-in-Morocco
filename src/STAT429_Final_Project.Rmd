@@ -235,3 +235,177 @@ Box.test(resid(hourly.lm), lag = 10, type = "Ljung-Box")
 
 ```
 
+#Spectral Analysis
+
+```{r}
+ts_data <- ts(powerconsumption)
+detrended <- ts_data - mean(ts_data, na.rm = TRUE)
+# Optional: Remove linear trend
+detrended <- detrended - predict(lm(detrended ~ time(detrended)))
+
+fft_result <- fft(detrended)
+n <- length(fft_result)
+
+# Frequencies (in cycles/hour)
+sampling_rate <- 6  # 6 samples per hour (10-minute intervals)
+freq <- (0:(n-1)) * (sampling_rate / n)  # Convert to cycles/hour
+
+# Periods (in hours)
+periods <- 1 / freq  # e.g., 24 = daily cycle
+
+power <- Mod(fft_result)^2 / n  # Squared magnitude = power
+
+# Plot up to Nyquist frequency (3 cycles/hour for 10-minute data)
+nyquist <- sampling_rate / 2
+keep <- freq <= nyquist & freq > 0  # Ignore 0-frequency (DC component)
+
+ggplot(data.frame(freq = freq[keep], power = power[keep]), aes(freq, power)) +
+  geom_line() +
+  geom_vline(xintercept = c(1, 1/24), color = "red", linetype = "dashed") +  # Hourly/daily
+  labs(title = "FFT Power Spectrum",
+       x = "Frequency (cycles/hour)",
+       y = "Power") +
+  scale_x_continuous(breaks = c(1/24, 1, 2, 3), labels = c("Daily (1/24)", "Hourly (1)", "2", "3")) +
+  theme_minimal()
+```
+##normalized spectral 
+
+```{r}
+# After your existing code...
+power_norm <- power[keep] / max(power[keep])  # 0-1 scaling
+power_db <- 10 * log10(power[keep] / max(power[keep]))  # Decibel scale
+
+# Update your ggplot with normalized values
+ggplot(data.frame(freq = freq[keep], power = power_db), aes(freq, power)) +
+  geom_line() +
+  geom_vline(xintercept = c(1, 1/24), color = "red", linetype = "dashed") +
+  labs(title = "Normalized FFT Power Spectrum (dB)",
+       x = "Frequency (cycles/hour)",
+       y = "Power (dB)") +
+  scale_x_continuous(breaks = c(1/24, 1, 2, 3), 
+                   labels = c("Daily (1/24)", "Hourly (1)", "2", "3")) +
+  theme_minimal()
+
+```
+
+```{r}
+# 0. Apply Hann window to reduce spectral leakage
+library(signal)
+hann_window <- flattopwin(length(detrended))  
+detrended_windowed <- detrended * hann_window
+
+# 1. Compute FFT with windowed data
+fft_result <- fft(detrended_windowed)
+n <- length(fft_result)
+
+# 2. Calculate frequencies and power
+sampling_rate <- 6  # 6 samples per hour
+freq <- (0:(n-1)) * (sampling_rate / n)
+power <- Mod(fft_result)^2 / n
+
+# 3. Filter to Nyquist frequency
+nyquist <- sampling_rate / 2
+keep <- freq <= nyquist & freq > 0
+
+# 4. Normalize and calculate metrics
+power_norm <- power[keep] / max(power[keep])  # 0-1 scaling
+power_db <- 10 * log10(power_norm)            # Decibel scale
+power_rel <- 100 * power[keep]/sum(power[keep]) # Relative power %
+
+# 5. Identify significant peaks (SNR > 10)
+noise_floor <- median(power[keep])
+significant_peaks <- which(power[keep] > 10 * noise_floor)
+
+# 6. Create enhanced plot
+library(ggplot2)
+ggplot(data.frame(freq = freq[keep], 
+                 power_db = power_db,
+                 power_rel = power_rel,
+                 is_peak = seq_along(power[keep]) %in% significant_peaks), 
+       aes(x = freq)) +
+  
+  # Main spectrum line
+  geom_line(aes(y = power_db), color = "black") +
+  
+  # Highlight significant peaks
+  geom_point(data = ~ subset(., is_peak), 
+            aes(y = power_db), color = "blue", size = 2) +
+  
+  # Reference lines and labels
+  geom_vline(xintercept = c(1/24, 0.66), color = "red", linetype = "dashed") +
+  
+  # Dual axis for dB and relative power
+  scale_y_continuous(
+    name = "Power (dB)",
+    sec.axis = sec_axis(~ . * 0.1, name = "Relative Power (%)")
+  ) +
+  
+  # Frequency labels
+  scale_x_continuous(
+    breaks = c(1/24, 0.66, 1, 2, 3),
+    labels = c("Daily (1/24)","0.66", "Hourly (1)", "2", "3"),
+    limits = c(0, 3)
+  ) +
+  
+  labs(title = "Enhanced FFT Power Spectrum with Significant Peaks",
+       x = "Frequency (cycles/hour)") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+This graph, processed with a flat-top window, reveals a more uniform distribution of peaks across frequencies (1.4, 2, and 2.6 cycles/hour) compared to the Hann window’s results. This occurs because the flat-top window prioritizes amplitude accuracy over frequency resolution, preserving the true power of all components—even weaker ones—while broadening their appearance. The blue dots highlight statistically significant peaks (SNR > 5), indicating meaningful cycles like the dominant daily rhythm (1/24 cycles/hour) and unexpected sub-hourly patterns (e.g., 43-minute cycles at 1.4 cycles/hour). The decibel (dB) scale (logarithmic) compresses the dynamic range, making both strong and weak peaks visible; for example, a −50 dB peak is 100,000× weaker than the maximum (0 dB). The flat-top window’s output suggests these sub-hourly peaks may reflect real operational patterns (e.g., equipment cycling every 30–43 minutes) rather than noise, but cross-validation with time-domain filtering or equipment logs is recommended. This analysis balances sensitivity (flat-top) and clarity (Hann) to uncover hidden energy dynamics.
+
+```{r}
+target_freq <- 0.8
+idx <- which.min(abs(freq[keep] - target_freq))  # Find nearest frequency bin
+snr <- power[keep][idx] / median(power[keep])    # SNR = Peak / Median noise
+
+snr
+
+exact_freq <- freq[keep][which.max(power[keep])]  # Find strongest peak
+exact_period <- 1 / exact_freq                   # Exact period in hours
+exact_period
+```
+SNR > 3 means it is likely a real signal, cycle every 1.5 hours
+
+##periodogram
+```{r}
+# Base R periodogram (unsmoothed)
+spec <- spectrum(detrended_windowed, 
+                 log = "no",     # linear scale
+                 plot = TRUE,    # plot the result
+                 spans = NULL,   # no smoothing
+                 taper = 0)      # already windowed
+
+# Convert frequencies to cycles/hour (already scaled if sampling_rate = 1)
+freqs <- spec$freq * sampling_rate  # rescale to match your FFT units
+power <- spec$spec
+
+```
+```{r}
+# Assume 'spec' is the output from the spectrum() function
+# The result of spectrum() has components: spec$freq (frequencies) and spec$spec (power values)
+
+# Extract the frequency and power values
+frequencies <- spec$freq
+power_values <- spec$spec
+
+# Find the peak's magnitude
+peak_magnitude <- max(power_values)
+
+# Identify the baseline (average noise level)
+# You can define the baseline as the average power in a range where no peaks are present
+# For example, we can take the last 20% of the power spectrum as a baseline noise region
+baseline_noise_range <- power_values[round(length(power_values) * 0.8):length(power_values)]
+baseline_magnitude <- mean(baseline_noise_range)
+
+# Calculate the ratio of the peak magnitude to the baseline noise level
+ratio <- peak_magnitude / baseline_magnitude
+
+# Print the results
+cat("Peak Magnitude:", peak_magnitude, "\n")
+cat("Baseline Magnitude:", baseline_magnitude, "\n")
+cat("Peak-to-Baseline Ratio:", ratio, "\n")
+```
+
+We see that the peak magnitude is much larger than the baseline magnitude and that means that the sole peak is definitely significant. 
+
