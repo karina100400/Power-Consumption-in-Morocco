@@ -367,6 +367,11 @@ exact_period
 ```
 SNR > 3 means it is likely a real signal, cycle every 1.5 hours
 
+```{r}
+library(astsa)
+spectrum(diff_power_ts)
+```
+
 ##periodogram
 ```{r}
 # Base R periodogram (unsmoothed)
@@ -381,6 +386,7 @@ freqs <- spec$freq * sampling_rate  # rescale to match your FFT units
 power <- spec$spec
 
 ```
+
 ```{r}
 # Assume 'spec' is the output from the spectrum() function
 # The result of spectrum() has components: spec$freq (frequencies) and spec$spec (power values)
