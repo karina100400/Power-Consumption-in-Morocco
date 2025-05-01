@@ -58,6 +58,19 @@ head(powerconsumption, 6)
 ```
 
 ```{r}
+hourly_powerconsumption <- powerconsumption %>% 
+  group_by(Datetime_hour = as_datetime(format(as.POSIXct(Datetime),"%m/%d/%Y %H"), format="%m/%d/%Y %H")) %>% 
+   summarize(total_consumption_hr=sum(total_consumption),
+             avg_temp=mean(Temperature),
+             avg_humidity=mean(Humidity),
+             avg_wind=mean(WindSpeed),
+             avg_diffuse=mean(DiffuseFlows)
+             )
+head(hourly_powerconsumption, 18)
+```
+
+
+```{r}
 avg_daily <- powerconsumption %>%
   mutate(date = as.Date(Datetime)) %>%
   group_by(date) %>%
@@ -164,8 +177,8 @@ time_consumption <- time(powerconsumption$total_consumption)
 power.lm <- lm(total_consumption ~ time_consumption + Temperature + Humidity + WindSpeed + DiffuseFlows, data=powerconsumption)
 summary(power.lm)
 
-power.lm2 <- lm(total_consumption ~ time_consumption + time_consumption2 + Temperature + Humidity + WindSpeed + DiffuseFlows, data=powerconsumption)
-summary(power.lm2)
+# power.lm2 <- lm(total_consumption ~ time_consumption + time_consumption2 + Temperature + Humidity + WindSpeed + DiffuseFlows, data=powerconsumption)
+# summary(power.lm2)
 
 power.lm3 <- lm(total_consumption ~ poly(time_consumption, 11, raw=TRUE) + Temperature + Humidity + WindSpeed + DiffuseFlows, data=powerconsumption)
 summary(power.lm3)
@@ -234,4 +247,12 @@ acf2(diff(diff(r2,144)),500)
 Box.test(resid(hourly.lm), lag = 10, type = "Ljung-Box")
 
 ```
+
+```{r}
+# total_consumption = ts(hourly$total_consumption)
+# 
+# hourly_sarima = sarima(total_consumption[1:300], p=0, d=0, q=1, P=0, D=1, Q=1, S=144)
+
+```
+
 
