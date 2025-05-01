@@ -291,7 +291,8 @@ ggplot(data.frame(freq = freq[keep], power = power_db), aes(freq, power)) +
 ```{r}
 # 0. Apply Hann window to reduce spectral leakage
 library(signal)
-hann_window <- flattopwin(length(detrended))  
+hann_window <- hanning(length(detrended))  
+# hann_window <- flattopwin(length(detrended))  
 detrended_windowed <- detrended * hann_window
 
 # 1. Compute FFT with windowed data
