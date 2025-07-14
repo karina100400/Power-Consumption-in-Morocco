@@ -1,8 +1,8 @@
 ---
 title: "STAT429_Project_Proposal"
 output:
-  pdf_document: default
   html_document: default
+  pdf_document: default
 linkcolor: blue
 date: "2025-03-26"
 ---
@@ -52,9 +52,9 @@ library(ggcorrplot)
 powerconsumption <- read_csv("powerconsumption.csv", 
     col_types = cols(Datetime = col_datetime(format = "%m/%d/%Y %H:%M")))
 powerconsumption <- powerconsumption %>% 
-  select(-c(GeneralDiffuseFlows)) %>%
-  mutate(total_consumption = PowerConsumption_Zone1 + PowerConsumption_Zone2 + PowerConsumption_Zone3)
-head(powerconsumption, 6)
+  mutate(total_consumption = PowerConsumption_Zone1 + PowerConsumption_Zone2 + PowerConsumption_Zone3) %>% 
+  select(-c(GeneralDiffuseFlows,PowerConsumption_Zone1,PowerConsumption_Zone2,PowerConsumption_Zone3)) 
+head(powerconsumption)
 ```
 
 ```{r}
@@ -66,7 +66,7 @@ hourly_powerconsumption <- powerconsumption %>%
              avg_wind=mean(WindSpeed),
              avg_diffuse=mean(DiffuseFlows)
              )
-head(hourly_powerconsumption, 18)
+head(hourly_powerconsumption)
 ```
 
 
@@ -78,7 +78,7 @@ avg_daily <- powerconsumption %>%
 
 ggplot(data=avg_daily, aes(x=date, y=avg_daily_consumption, group=1)) +
   geom_line(color="darkgreen") + 
-  labs(title = "Avg Daily Power Consumption", x = "Date", y = "Power Consumption", caption = "Fig. 1") +
+  labs(title = "Avg Daily Power Consumption", x = "Date", y = "Power Consumption") +
   theme(plot.title = element_text(hjust = 0.5))
 ```
 
@@ -88,7 +88,7 @@ The average daily power consumption is characterized by an overall trend that pe
 corr_matrix <- powerconsumption %>%
   select(Temperature, Humidity, WindSpeed, DiffuseFlows, total_consumption)
 ggcorrplot(cor(corr_matrix), type="lower") +
-  labs(title = "Correlation Heatmap", caption = "Fig. 2")
+  labs(title = "Correlation Heatmap")
 ```
 
 The Temperature variable seems to be moderately correlated to Humidity, WindSpeed, and total_consumption
@@ -249,9 +249,12 @@ Box.test(resid(hourly.lm), lag = 10, type = "Ljung-Box")
 ```
 
 ```{r}
-# total_consumption = ts(hourly$total_consumption)
-# 
-# hourly_sarima = sarima(total_consumption[1:300], p=0, d=0, q=1, P=0, D=1, Q=1, S=144)
+hourly_ts <- ts(hourly_powerconsumption$total_consumption_hr)
+
+hourly_sarima = sarima(ts(hourly_powerconsumption$total_consumption_hr), p=2, d=1, q=0, P=0, D=1, Q=1, S=24,
+                       xreg=cbind(
+                         hourly_powerconsumption$avg_humidity)
+                       )
 
 ```
 

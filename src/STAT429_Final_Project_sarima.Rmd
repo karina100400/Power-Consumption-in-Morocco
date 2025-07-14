@@ -14,15 +14,15 @@ knitr::opts_chunk$set(out.width="70%", fig.align='center')
 
 # Team Members
 
-Jaehyung Kim ?€? GR, netid: jk38\
-Karina Grewal ?€? GR, netid: kgrewal2\
+Jaehyung Kim ??? GR, netid: jk38\
+Karina Grewal ??? GR, netid: kgrewal2\
 Steve Liang - GR, netid: stevel3
 
 # Data Description
 
-The data signifies power consumption in Tetouan, Morocco, recorded from January 1st, 2017 to December 30th, 2017. This is collected from [Amendis](https://www.amendis.ma/fr), the electricity distributor in that region, and we have obtained this dataset from [Kaggle](https://www.kaggle.com/datasets/fedesoriano/electric-power-consumption/data). In terms of the regressor variables, there are five features, which are ?€œtemperature?€?, ?€œhumidity?€?, ?€œwind speed?€?, ?€œGeneral Diffuse Flows?€?, ?€œDiffuse Flows?€?, and three response variables ?€œZone 1 Power Consumption?€?, ?€œZone 2 Power Consumption?€?, and ?€œZone 3 Power Consumption?€? measurements.
+The data signifies power consumption in Tetouan, Morocco, recorded from January 1st, 2017 to December 30th, 2017. This is collected from [Amendis](https://www.amendis.ma/fr), the electricity distributor in that region, and we have obtained this dataset from [Kaggle](https://www.kaggle.com/datasets/fedesoriano/electric-power-consumption/data). In terms of the regressor variables, there are five features, which are ???temperature???, ???humidity???, ???wind speed???, ???General Diffuse Flows???, ???Diffuse Flows???, and three response variables ???Zone 1 Power Consumption???, ???Zone 2 Power Consumption???, and ???Zone 3 Power Consumption??? measurements.
 
-To analyze the effects of the weather factors on power consumption, we decided to remove ?€œGeneral Diffuse Flows?€? as that variable counts for radiation that bounces off of nearby surfaces.
+To analyze the effects of the weather factors on power consumption, we decided to remove ???General Diffuse Flows??? as that variable counts for radiation that bounces off of nearby surfaces.
 
 Feature Variables:
 
@@ -99,7 +99,7 @@ There is potentially a seasonal trend across the hours of the day. Lowest consum
 
 # Analysis Plan
 
-In this project, our goal is to forecast the total power consumption in Tetouan, Morocco (across all three zones), using time series models while also exploring how extreme weather events and seasonal/daily patterns influence consumption trends. Our response variable will be ?€œtotal consumption?€?, and we?€™ll use ?€œtemperature?€?, ?€œhumidity?€?, ?€œwind speed?€?, and ?€œdiffuse flows?€? as our regressor variables.
+In this project, our goal is to forecast the total power consumption in Tetouan, Morocco (across all three zones), using time series models while also exploring how extreme weather events and seasonal/daily patterns influence consumption trends. Our response variable will be ???total consumption???, and we???ll use ???temperature???, ???humidity???, ???wind speed???, and ???diffuse flows??? as our regressor variables.
 
 Below are the key questions we aim to answer:
 
@@ -155,6 +155,7 @@ Wavelet Transforms - An overview. (n.d.). ScienceDirect Topics. Retrieved March 
 ```{r}
 #powerconsumption is our main dataframe
 power_ts <- as.ts(powerconsumption$total_consumption)
+#first order difference
 diff_power_ts <- diff(power_ts)
 
 ```
